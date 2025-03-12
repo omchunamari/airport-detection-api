@@ -1,10 +1,10 @@
 import os
+import torch
+import cv2
+import numpy as np
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import cv2
-import torch
 from PIL import Image
-import numpy as np
 
 # Define paths
 UPLOAD_FOLDER = "uploads"
@@ -14,15 +14,11 @@ OUTPUT_FOLDER = "outputs"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# Load GitHub Token from environment (set in Render)
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-if GITHUB_TOKEN:
-    os.environ["GITHUB_TOKEN"] = GITHUB_TOKEN
-
-# Load YOLOv5 model (use smaller 'yolov5s' for lower memory usage)
+# Load YOLOv5 model (force CPU, use smallest model)
 try:
-    model = torch.hub.load("ultralytics/yolov5", "yolov5s", device="cpu")
-    print("✅ YOLOv5 model loaded successfully.")
+    model = torch.hub.load("ultralytics/yolov5", "yolov5n", device="cpu")  # 🔹 Use 'yolov5n' (nano version)
+    model.conf = 0.5  # 🔹 Reduce confidence threshold to process fewer objects
+    print("✅ YOLOv5 nano model loaded successfully.")
 except Exception as e:
     print(f"❌ Error loading model: {e}")
     model = None  # Prevent further errors
@@ -52,17 +48,20 @@ def upload_file():
         return jsonify({"error": "Model not loaded. Try again later."}), 500
 
     try:
-        # Convert image to RGB format & resize to 640x640
+        # Convert image to RGB format & resize to reduce memory usage
         image = Image.open(file_path).convert("RGB")
-        image = image.resize((640, 640))  # 🔹 Resize to reduce memory usage
+        image = image.resize((320, 320))  # 🔹 Resize to 320x320 (smaller input, lower memory use)
 
+        # Run YOLOv5 inference
         results = model(image)
 
         # Convert to NumPy array for OpenCV
         img = np.array(image)
 
-        # Draw bounding boxes
-        for *box, conf, cls in results.xyxy[0]:
+        # Draw bounding boxes (limit processing to 5 objects max)
+        for i, (*box, conf, cls) in enumerate(results.xyxy[0]):
+            if i >= 5:  # 🔹 Process max 5 objects to save memory
+                break
             x1, y1, x2, y2 = map(int, box)
             label = f"{model.names[int(cls)]} {conf:.2f}"
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
