@@ -9,7 +9,6 @@ import numpy as np
 # Define paths
 UPLOAD_FOLDER = "uploads"
 OUTPUT_FOLDER = "outputs"
-MODEL_PATH = "yolov5best.pt"  # Ensure this file exists in your root directory
 
 # Ensure directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -17,14 +16,12 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # Load GitHub Token from environment (set in Render)
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-
-# Set GitHub token in environment (required for torch.hub)
 if GITHUB_TOKEN:
     os.environ["GITHUB_TOKEN"] = GITHUB_TOKEN
 
-# Load YOLOv5 model
+# Load YOLOv5 model (use smaller 'yolov5s' for lower memory usage)
 try:
-    model = torch.hub.load("ultralytics/yolov5", "yolov5s")
+    model = torch.hub.load("ultralytics/yolov5", "yolov5s", device="cpu")
     print("✅ YOLOv5 model loaded successfully.")
 except Exception as e:
     print(f"❌ Error loading model: {e}")
@@ -55,8 +52,10 @@ def upload_file():
         return jsonify({"error": "Model not loaded. Try again later."}), 500
 
     try:
-        # Convert image to RGB format
+        # Convert image to RGB format & resize to 640x640
         image = Image.open(file_path).convert("RGB")
+        image = image.resize((640, 640))  # 🔹 Resize to reduce memory usage
+
         results = model(image)
 
         # Convert to NumPy array for OpenCV
