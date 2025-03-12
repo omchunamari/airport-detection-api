@@ -24,7 +24,7 @@ if GITHUB_TOKEN:
 
 # Load YOLOv5 model
 try:
-    model = torch.hub.load("ultralytics/yolov5", "custom", path=MODEL_PATH, force_reload=True, trust_repo=True)
+    model = torch.hub.load("ultralytics/yolov5", "yolov5s")
     print("✅ YOLOv5 model loaded successfully.")
 except Exception as e:
     print(f"❌ Error loading model: {e}")
