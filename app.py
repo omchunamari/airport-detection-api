@@ -2,7 +2,7 @@ import os
 import subprocess
 
 # Automatically install required dependencies
-required_packages = ["flask", "flask-cors", "pillow", "torch", "torchvision", "ultralytics", "opencv-python","gitpython"]
+required_packages = ["flask", "flask-cors", "pillow", "torch", "torchvision", "ultralytics", "opencv-python"]
 
 for package in required_packages:
     try:
@@ -22,25 +22,34 @@ import numpy as np
 # Define paths
 UPLOAD_FOLDER = "uploads"
 OUTPUT_FOLDER = "outputs"
-MODEL_PATH = "yolov5best.pt"  # Change this to the actual path of best.pt
+MODEL_PATH = "yolov5best.pt"  # Ensure this model file exists in your root directory
 
 # Ensure directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# Load custom YOLOv5 model
-model = torch.hub.load("ultralytics/yolov5", "custom", path=MODEL_PATH, force_reload=True)
+# Load YOLOv5 model
+try:
+    model = torch.hub.load("ultralytics/yolov5", "custom", path=MODEL_PATH, force_reload=True)
+except Exception as e:
+    print(f"Error loading model: {e}")
+    exit(1)  # Stop execution if model fails to load
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend communication
+
+# ✅ Allow CORS for Vercel frontend
+CORS(app, resources={r"/*": {"origins": "https://airport-object-detection.vercel.app"}})
+
+@app.route("/")
+def home():
+    return jsonify({"message": "Airport Object Detection API is running!"})
 
 @app.route("/upload/", methods=["POST"])
 def upload_file():
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
 
-    file = request.files["file"
-    ]
+    file = request.files["file"]
     if file.filename == "":
         return jsonify({"error": "No selected file"}), 400
 
@@ -69,4 +78,5 @@ def get_output_image(filename):
     return send_from_directory(OUTPUT_FOLDER, filename)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))  # Render assigns a dynamic port
+    app.run(host="0.0.0.0", port=port, debug=True)
