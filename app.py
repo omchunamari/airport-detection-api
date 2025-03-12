@@ -15,6 +15,13 @@ MODEL_PATH = "yolov5best.pt"  # Ensure this file exists in your root directory
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
+# Load GitHub Token from environment (set in Render)
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+# Set GitHub token in environment (required for torch.hub)
+if GITHUB_TOKEN:
+    os.environ["GITHUB_TOKEN"] = GITHUB_TOKEN
+
 # Load YOLOv5 model
 try:
     model = torch.hub.load("ultralytics/yolov5", "custom", path=MODEL_PATH, force_reload=True, trust_repo=True)
