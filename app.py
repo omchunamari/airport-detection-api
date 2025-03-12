@@ -1,17 +1,4 @@
 import os
-import subprocess
-
-# Automatically install required dependencies
-required_packages = ["flask", "flask-cors", "pillow", "torch", "torchvision", "ultralytics", "opencv-python","gitpython","setuptools,gunicorn"]
-
-for package in required_packages:
-    try:
-        __import__(package.replace("-", "_"))  # Import package to check if it's installed
-    except ImportError:
-        print(f"Installing {package}...")
-        subprocess.check_call(["pip", "install", package])
-
-# Now import the required libraries
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import cv2
@@ -37,8 +24,8 @@ except Exception as e:
 
 app = Flask(__name__)
 
-# ✅ Allow CORS for Vercel frontend
-CORS(app, resources={r"/*": {"origins": "https://airport-object-detection.vercel.app"}})
+# ✅ Allow CORS only for Vercel frontend
+CORS(app, resources={r"/upload/*": {"origins": "https://airport-object-detection.vercel.app"}})
 
 @app.route("/")
 def home():
@@ -79,4 +66,4 @@ def get_output_image(filename):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))  # Render assigns a dynamic port
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port)
