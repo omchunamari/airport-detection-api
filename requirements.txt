@@ -1,7 +1,10 @@
 flask
 flask-cors
+pillow
 torch
 torchvision
 ultralytics
 opencv-python
+gitpython
+setuptools
 gunicorn

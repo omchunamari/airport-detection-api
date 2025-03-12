@@ -2,7 +2,7 @@ import os
 import subprocess
 
 # Automatically install required dependencies
-required_packages = ["flask", "flask-cors", "pillow", "torch", "torchvision", "ultralytics", "opencv-python"]
+required_packages = ["flask", "flask-cors", "pillow", "torch", "torchvision", "ultralytics", "opencv-python","gitpython","setuptools,gunicorn"]
 
 for package in required_packages:
     try:
