@@ -9,7 +9,7 @@ import numpy as np
 # Define paths
 UPLOAD_FOLDER = "uploads"
 OUTPUT_FOLDER = "outputs"
-MODEL_PATH = "yolov5best.pt"  # Ensure this model file exists in your root directory
+MODEL_PATH = "yolov5best.pt"  # Ensure this file exists in your root directory
 
 # Ensure directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -17,10 +17,11 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # Load YOLOv5 model
 try:
-    model = torch.hub.load("ultralytics/yolov5", "custom", path=MODEL_PATH, force_reload=True)
+    model = torch.hub.load("ultralytics/yolov5", "custom", path=MODEL_PATH, force_reload=True, trust_repo=True)
+    print("✅ YOLOv5 model loaded successfully.")
 except Exception as e:
-    print(f"Error loading model: {e}")
-    exit(1)  # Stop execution if model fails to load
+    print(f"❌ Error loading model: {e}")
+    model = None  # Prevent further errors
 
 app = Flask(__name__)
 
@@ -43,22 +44,32 @@ def upload_file():
     file_path = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(file_path)
 
-    # Run YOLOv5 inference on uploaded image
-    image = Image.open(file_path)
-    results = model(image)
+    if model is None:
+        return jsonify({"error": "Model not loaded. Try again later."}), 500
 
-    # Draw bounding boxes
-    img = np.array(image)
-    for *box, conf, cls in results.xyxy[0]:  # Iterate over detections
-        x1, y1, x2, y2 = map(int, box)
-        label = f"{model.names[int(cls)]} {conf:.2f}"
-        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    try:
+        # Convert image to RGB format
+        image = Image.open(file_path).convert("RGB")
+        results = model(image)
 
-    output_path = os.path.join(OUTPUT_FOLDER, file.filename)
-    Image.fromarray(img).save(output_path)
+        # Convert to NumPy array for OpenCV
+        img = np.array(image)
 
-    return jsonify({"filename": file.filename})
+        # Draw bounding boxes
+        for *box, conf, cls in results.xyxy[0]:
+            x1, y1, x2, y2 = map(int, box)
+            label = f"{model.names[int(cls)]} {conf:.2f}"
+            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+        # Save output image
+        output_path = os.path.join(OUTPUT_FOLDER, file.filename)
+        Image.fromarray(img).save(output_path)
+
+        return jsonify({"filename": file.filename})
+
+    except Exception as e:
+        return jsonify({"error": f"Processing failed: {e}"}), 500
 
 @app.route("/outputs/<filename>")
 def get_output_image(filename):
