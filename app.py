@@ -22,26 +22,37 @@ model = torch.hub.load(
     trust_repo=True,  # Avoid SSL warnings
 )
 
+# Ensure directories exist
+os.makedirs("uploads", exist_ok=True)
+os.makedirs("outputs", exist_ok=True)
+
 @app.route("/detect", methods=["POST"])
 def detect():
     if "image" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files["image"]
-    image = Image.open(file.stream).convert("RGB")  # ✅ Convert image to RGB
+    filename = file.filename
+    image_path = os.path.join("uploads", filename)
+    output_path = os.path.join("outputs", filename)
+    
+    # ✅ Save uploaded image
+    file.save(image_path)
 
-    # 🔥 Run YOLOv5 inference
-    results = model(image)
+    image = Image.open(image_path).convert("RGB")  # ✅ Convert image to RGB
+
+    # 🔥 Run YOLOv5 inference with correct AMP usage
+    with torch.amp.autocast("cuda"):
+        results = model(image)
 
     # 🖼️ Render bounding boxes
     results.render()
     
-    # ✅ Convert the image correctly before sending
-    img_bytes = io.BytesIO()
-    Image.fromarray(results.ims[0]).save(img_bytes, format="JPEG")
-    img_bytes.seek(0)
-
-    return send_file(img_bytes, mimetype="image/jpeg")
+    # ✅ Save detected image
+    detected_image = Image.fromarray(results.ims[0])
+    detected_image.save(output_path, format="JPEG")
+    
+    return send_file(output_path, mimetype="image/jpeg")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=4000, debug=True)  # ✅ Allow external access
